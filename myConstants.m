@@ -1,0 +1,11 @@
+m2km       = 1/1000;    % meter to kilometers
+km2m       = 1000/1;    % kilometers to meters
+Hz2MHz     = 1/10^6;    % Hertz to Megahertz 
+Hz2KHz     = 1/1000;    % Hertz to Kilohertz
+sec2ms     = 1000/1;    % seconds to miliseconds 
+sec2ns     = 1e9;       % seconds to nanoseconds 
+sec2mics   = 1e6;       % seconds to microseconds
+deg2rad    = pi/180;    % degrees to radians
+micsec2sec = 1/1e6;     % microseconds to seconds
+MHz2KHz    = 1*1000;    % MegaHertz to Kilohertz
+GHz2Hz     = 1e9;       % GigaHertz to Hertz 
