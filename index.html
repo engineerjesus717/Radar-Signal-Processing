@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#07131f" />
+    <title>LFM Radar Signal Lab</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="topbar">
+        <div class="brand">
+          <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
+          <div>
+            <p class="eyebrow">ECE 538 · Signal Processing Studio</p>
+            <h1>LFM Radar Signal Lab</h1>
+            <h2>Jesus Torres</h2>
+            <h3>University of Arizona</h3>
+          </div>
+        </div>
+        <div class="topbar-status" aria-label="Simulation state">
+          <div class="status-item"><span class="status-dot live"></span><span id="runStatus">READY</span></div>
+          <div class="status-item"><span class="label">MODE</span><strong id="modeReadout">SINGLE TARGET</strong></div>
+          <div class="clock" id="clock">--:--:--</div>
+        </div>
+      </header>
+
+      <section class="workflow-strip" aria-label="Assignment workflow">
+        <div class="workflow-step complete"><span>01</span><div><strong>Waveform</strong><small>Custom LFM via exp(jφ)</small></div></div>
+        <div class="workflow-line"></div>
+        <div class="workflow-step active"><span>02</span><div><strong>Channel</strong><small>Delayed echoes + AWGN</small></div></div>
+        <div class="workflow-line"></div>
+        <div class="workflow-step"><span>03</span><div><strong>Matched filter</strong><small>Time-reversed conjugate</small></div></div>
+        <div class="workflow-line"></div>
+        <div class="workflow-step"><span>04</span><div><strong>Compare</strong><small>SNR and resolution</small></div></div>
+      </section>
+
+      <section class="workspace">
+        <aside class="control-rail" aria-label="Simulation controls">
+          <div class="panel panel-control">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">Pulse designer</p>
+                <h2>LFM waveform</h2>
+              </div>
+              <span class="chip cyan">EXP</span>
+            </div>
+            <div class="formula">x(t) = exp{j2π[-B/2·t + B/(2T)·t²]}</div>
+            <label class="field">
+              <span>Bandwidth <b>B</b></span>
+              <div class="input-wrap"><input id="bandwidth" type="number" value="2" min="0.2" max="8" step="0.1" /><em>MHz</em></div>
+            </label>
+            <label class="field">
+              <span>Pulse width <b>T</b></span>
+              <div class="input-wrap"><input id="duration" type="number" value="20" min="2" max="80" step="1" /><em>μs</em></div>
+            </label>
+            <label class="field">
+              <span>Sample rate <b>f<sub>s</sub></b></span>
+              <div class="input-wrap"><input id="sampleRate" type="number" value="10" min="2" max="40" step="1" /><em>MHz</em></div>
+            </label>
+            <div class="derived-grid">
+              <div><span>Time-bandwidth</span><strong id="tbpValue">40</strong></div>
+              <div><span>Range resolution</span><strong id="resolutionValue">75 m</strong></div>
+            </div>
+          </div>
+
+          <div class="panel panel-control">
+            <div class="panel-heading compact">
+              <div>
+                <p class="eyebrow">Receive channel</p>
+                <h2>Noise & return</h2>
+              </div>
+              <span class="chip violet">AWGN</span>
+            </div>
+            <label class="field">
+              <span>Input SNR <b>(per sample)</b></span>
+              <div class="input-wrap"><input id="inputSnr" type="number" value="-8" min="-24" max="20" step="1" /><em>dB</em></div>
+            </label>
+            <label class="field">
+              <span>Receive guard time</span>
+              <div class="input-wrap"><input id="guardTime" type="number" value="6" min="2" max="20" step="1" /><em>μs</em></div>
+            </label>
+            <div class="noise-scale"><span>Noise power</span><div><i id="noiseMeter"></i></div><b id="noiseLabel">-8 dB</b></div>
+          </div>
+
+          <button class="primary-action" id="runButton"><span class="play-icon">▶</span> Run simulation</button>
+          <button class="secondary-action" id="noiseButton">↻ New noise realization</button>
+        </aside>
+
+        <section class="scope-area" aria-label="Radar displays">
+          <div class="scope-toolbar">
+            <div class="scenario-group" role="group" aria-label="Target scenario">
+              <button class="scenario active" data-scenario="single">01 · Single target</button>
+              <button class="scenario" data-scenario="resolved">02 · Resolvable pair</button>
+              <button class="scenario" data-scenario="unresolved">03 · Unresolvable pair</button>
+            </div>
+            <div class="scope-tools"><span class="sweep-key"><i></i> LIVE SWEEP</span><button id="resetButton" class="icon-button" title="Reset defaults" aria-label="Reset defaults">↺</button></div>
+          </div>
+
+          <article class="panel scope-panel lfm-panel">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">Transmit view</p>
+                <h2>LFM pulse in complex baseband</h2>
+              </div>
+              <div class="legend"><span><i class="legend-line cyan-line"></i>I / real</span><span><i class="legend-line violet-line"></i>Q / imag</span></div>
+            </div>
+            <div class="chart-wrap"><canvas id="waveformCanvas" aria-label="LFM complex waveform chart"></canvas></div>
+            <div class="plot-foot"><span>Start: <b>−B/2</b></span><span>Chirp rate: <b id="chirpValue">0.10 MHz/μs</b></span><span>End: <b>+B/2</b></span></div>
+          </article>
+
+          <article class="panel scope-panel range-panel">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">Receive / process view</p>
+                <h2>Matched-filter range profile</h2>
+              </div>
+              <div class="profile-state"><span></span><b id="profileReadout">CORRELATING</b></div>
+            </div>
+            <div class="chart-wrap range-chart-wrap"><canvas id="rangeCanvas" aria-label="Matched filter range profile chart"></canvas><div class="scanline"></div></div>
+            <div class="plot-foot"><span>Range origin: <b>0 km</b></span><span>Amplitude: <b>normalized dB</b></span><span id="peakReadout">Peak: 3.00 km</span></div>
+          </article>
+        </section>
+
+        <aside class="insight-rail" aria-label="Simulation insights">
+          <article class="panel metric-panel">
+            <div class="panel-heading compact">
+              <div><p class="eyebrow">Processing gain</p><h2>SNR comparison</h2></div>
+              <span class="chip lime" id="gainChip">+0.0 dB</span>
+            </div>
+            <div class="snr-bars">
+              <div class="snr-row"><div><span>Before filter</span><strong id="snrBefore">-- dB</strong></div><div class="bar-track"><i id="snrBeforeBar"></i></div></div>
+              <div class="snr-row accent"><div><span>After filter</span><strong id="snrAfter">-- dB</strong></div><div class="bar-track"><i id="snrAfterBar"></i></div></div>
+            </div>
+            <p class="metric-note">The matched filter coherently integrates the full pulse while noise adds incoherently.</p>
+          </article>
+
+          <article class="panel target-panel">
+            <div class="panel-heading compact">
+              <div><p class="eyebrow">Target scene</p><h2>Point reflectors</h2></div>
+              <span class="chip neutral" id="targetCount">1 ACTIVE</span>
+            </div>
+            <div class="target-head"><span>Target</span><span>Range</span><span>Return</span></div>
+            <div class="target-row">
+              <span class="target-badge">A</span>
+              <label><input id="targetA" type="number" value="3.000" min="0.2" max="10" step="0.005" /><em>km</em></label>
+              <label><input id="ampA" type="number" value="0" min="-24" max="6" step="1" /><em>dB</em></label>
+            </div>
+            <div class="target-row target-b-row" id="targetBRow">
+              <span class="target-badge second">B</span>
+              <label><input id="targetB" type="number" value="3.150" min="0.2" max="10" step="0.005" /><em>km</em></label>
+              <label><input id="ampB" type="number" value="-4" min="-24" max="6" step="1" /><em>dB</em></label>
+            </div>
+            <div class="resolution-callout" id="resolutionCallout"><span class="callout-dot"></span><div><strong>One echo expected</strong><small>Switch scenarios to compare two-target resolution.</small></div></div>
+          </article>
+
+          <article class="panel method-panel">
+            <div class="panel-heading compact"><div><p class="eyebrow">Implementation path</p><h2>What the lab is doing</h2></div></div>
+            <ol>
+              <li><span>1</span>Generate the sampled chirp directly from its exponential phase.</li>
+              <li><span>2</span>Delay and scale a copy for every point target, then add complex Gaussian noise.</li>
+              <li><span>3</span>Convolve with <code>h[n] = x*[N−1−n]</code> and inspect the peaks.</li>
+            </ol>
+          </article>
+        </aside>
+      </section>
+
+      <section class="telemetry panel">
+        <div class="telemetry-title"><span class="status-dot live"></span><div><p class="eyebrow">Experiment log</p><h2>Simulation telemetry</h2></div></div>
+        <div class="telemetry-stream" id="telemetry" aria-live="polite"></div>
+        <div class="telemetry-action"><span>Manual correlation</span><b id="sampleCount">-- samples</b></div>
+      </section>
+
+      <footer>Educational numerical simulation · Complex baseband · Speed of light <span>c = 299,792,458 m/s</span></footer>
+    </main>
+    <script src="app.js"></script>
+  </body>
+</html>
